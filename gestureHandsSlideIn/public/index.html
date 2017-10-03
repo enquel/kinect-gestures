@@ -29,7 +29,7 @@
 		var HANDOPENCOLOR = "green";
 
 		// lasso hand state color
-        var HANDLASSOCOLOR = "blue";
+        	var HANDLASSOCOLOR = "blue";
 
 
 
@@ -75,103 +75,11 @@
         var mStatePrev = -1; //prev state value
         var mOutputDist = 0; 
 
-
-        //if distance between hands in X higher than a predefined value
-        //and distance between hands in Y lower than a predefined value
-        //and speed of hand movement higher than minimum
-        //and none of the hands is closed
-        //do gesture
-        //the distance travelled (measured here as the distance travelled by left hand)
-
-
         var mMinDistBetweenHandsX = 0.1;
         var mMaxDistBetweenHandsY = 0.1;
         var mMinSpeedHands = 0.003; //so far 0.01 tested; last tested 0.0000003;
 
-        function gestureHandsMoveUp(body)
-        {
-            //COMMON
-            var torsoPosX = body.joints[1].depthX;
-            var torsoPosY = body.joints[1].depthY;
-            var torsoPosZ = body.joints[1].depthZ;
-
-
-            var leftHandPosX = body.joints[7].depthX;
-            var leftHandPosY = body.joints[7].depthY;
-            var leftHandPosZ = body.joints[7].depthZ;
-
-            var rightHandPosX = body.joints[11].depthX;
-            var rightHandPosY = body.joints[11].depthY;
-            var rightHandPosZ = body.joints[11].depthZ;
-
-            var leftHandRelPosX = leftHandPosX - torsoPosX;
-            var leftHandRelSpeedX = leftHandRelPosX - leftHandRelPosXOld;
-            var leftHandRelPosY = leftHandPosY - torsoPosY;
-            var leftHandRelSpeedY = leftHandRelPosY - leftHandRelPosYOld;
-            var leftHandRelPosZ = leftHandPosZ - torsoPosZ;
-            var leftHandRelSpeedZ = leftHandRelPosZ - leftHandRelPosZOld;
-
-            var rightHandRelPosX = rightHandPosX - torsoPosX;
-            var rightHandRelSpeedX = rightHandRelPosX - rightHandRelPosXOld;
-            var rightHandRelPosY = rightHandPosY - torsoPosY;
-            var rightHandRelSpeedY = rightHandRelPosY - rightHandRelPosYOld;
-            var rightHandRelPosZ = rightHandPosZ - torsoPosZ;
-            var rightHandRelSpeedZ = rightHandRelPosZ - rightHandRelPosZOld;
-
-
-            //GESTURE SPECIFIC
-
-            if ((Math.abs(leftHandRelPosX - rightHandRelPosX) > mMinDistBetweenHandsX && Math.abs(leftHandRelPosY - rightHandRelPosY) < mMaxDistBetweenHandsY) &&
-                (body.leftHandState != 3 && body.rightHandState != 3)
-            )
-            {
-                mState = 2;
-                if (leftHandRelSpeedY < - mMinSpeedHands)
-                {
-                    printOutput("Gesture pending: Hands Up");
-                }
-                else if (leftHandRelSpeedY > mMinSpeedHands)
-                {
-                    printOutput("Gesture pending: Hands Down");
-                }
-            }
-            else if (Math.abs(leftHandRelPosX - rightHandRelPosX) < mMinDistBetweenHandsX)
-            {
-                mState = 3;
-                printOutput("Gesture ended: Hands too close in X");
-            }
-            else if (Math.abs(leftHandRelPosY - rightHandRelPosY) > mMaxDistBetweenHandsY)
-            {
-                mState = 3;
-                printOutput("Gesture ended: Hands too far in Y");
-            }
-            else if (body.leftHandState == 3 || body.rightHandState == 3) 
-            {
-                mState = 3;
-                printOutput("Gesture ended: One or more hands closed");
-            }
-
-            //COUNTING DISTANCE TRAVELLED
-            if (mState == 2)
-            {
-                mOutputDist += Math.abs(leftHandRelSpeedY);
-            }
-            else
-            {
-                mOutputDist = 0;
-            }
-
-            //WRITING TO OLD VALUES
-            mStatePrev = mState;
-
-            leftHandRelPosXOld = leftHandRelPosX;
-            leftHandRelPosYOld = leftHandRelPosY;
-            leftHandRelPosZOld = leftHandRelPosZ;
-
-            rightHandRelPosXOld = rightHandRelPosX;
-            rightHandRelPosYOld = rightHandRelPosY;
-            rightHandRelPosZOld = rightHandRelPosZ;
-        }
+        
 
         //if start distance between hands in X higher than a predefined value
         //and distance between hands in Y lower than a predefined value
