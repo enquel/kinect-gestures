@@ -85,10 +85,9 @@
         //if start distance between hands in X higher than a predefined value
         //and distance between hands in Y lower than a predefined value
         //and speed of hand movement higher than minimum
-        //and the distance between hands is decreasing more than a threshold
         //and initial distance covered
         //do gesture
-        //until the distance between hands does not increase aboove threshold
+        //until the distance between hands does not decrease above threshold
         //the distance travelled (measured here as the entire change of distance between hands from start to finish)
 
         var leftHandRelPosXStart = 0;
@@ -140,7 +139,11 @@
                 //condition for starting the gesture
                 //if start distance between hands in X higher than a predefined value
                 //and distance between hands in Y lower than a predefined value
-                if (Math.abs(leftHandRelPosX - rightHandRelPosX) > mMinDistBetweenHandsX && Math.abs(leftHandRelPosY - rightHandRelPosY) < mMaxDistBetweenHandsY)
+                //and initial distance is covered
+                //initiate gesture
+               
+                if (Math.abs(leftHandRelPosX - rightHandRelPosX) > mMinDistBetweenHandsX
+                    && Math.abs(leftHandRelPosY - rightHandRelPosY) < mMaxDistBetweenHandsY)
                 {
                     printOutput("Gesture initiating");
 
@@ -155,6 +158,10 @@
                         mState = 1;
                     }     
                 }
+                else
+                {
+                   mInitialDistCurrent = 0; 
+                }
             }
             else if (mState == 1)
             {
@@ -164,10 +171,10 @@
             }
             else if (mState == 2)
             {           
-                //condition for endging the gesture
+                //condition for ending the gesture
                 //if distance between hands in X lower than a predefined value
                 //and distance between hands in Y higher than a predefined value
-                //also if the distance between the hands increased from previous frame - we cancel the gesture
+                //also if the distance between the hands decreased from previous frame - we cancel the gesture
 
                 var canContinue = true;
 
@@ -183,10 +190,10 @@
                     printOutput("Gesture ended: hands too far in Y");
                 }
 
-                if (mCurrentDistHands - mPrevDistHands > mDistHandsThres) //was 0.001
+                if (mCurrentDistHands - mPrevDistHands < mDistHandsThres) //was 0.001 was >
                 {
                     canContinue = false;
-                    printOutput("Gesture ended: hands sliding out");
+                    printOutput("Gesture ended: hands sliding in instead of out");
                 }
 
                 if (!canContinue)
@@ -195,7 +202,7 @@
                 }
                 else
                 {
-                    printOutput("Gesture pending: Hands Slide In");
+                    printOutput("Gesture pending: Hands Slide Out");
                 }
             }
             else if (mState == 3)
