@@ -1,57 +1,57 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>Node Kinect2 Client</title>
-	<link rel="stylesheet" href="">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Node Kinect2 Client</title>
+    <link rel="stylesheet" href="">
 </head>
 <body>
     <p>Status:</p>
     <p id="labelPar"></p>
     <p id="distPar"></p>
     <p id="handsDistPar"></p>
-	<canvas id="bodyCanvas" width="512" height="424"></canvas>
-	<script src="/socket.io/socket.io.js"></script>
-	<script>
-		var socket = io.connect('/');
-		var canvas = document.getElementById('bodyCanvas');
-		var ctx = canvas.getContext('2d');
-		var colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'];
+    <canvas id="bodyCanvas" width="512" height="424"></canvas>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io.connect('/');
+        var canvas = document.getElementById('bodyCanvas');
+        var ctx = canvas.getContext('2d');
+        var colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff'];
 
-		// handstate circle size
-		var HANDSIZE = 20;
+        // handstate circle size
+        var HANDSIZE = 20;
 
-		// closed hand state color
-		var HANDCLOSEDCOLOR = "red";
+        // closed hand state color
+        var HANDCLOSEDCOLOR = "red";
 
-		// open hand state color
-		var HANDOPENCOLOR = "green";
+        // open hand state color
+        var HANDOPENCOLOR = "green";
 
-		// lasso hand state color
+        // lasso hand state color
         var HANDLASSOCOLOR = "blue";
 
 
 
-		function updateHandState(handState, jointPoint) 
-		{
-			//console.log("function updateHandState(handState, jointPoint)  ");
+        function updateHandState(handState, jointPoint) 
+        {
+            //console.log("function updateHandState(handState, jointPoint)  ");
 
-			switch (handState) 
-			{
-				case 3:
-					drawHand(jointPoint, HANDCLOSEDCOLOR);
-				break;
+            switch (handState) 
+            {
+                case 3:
+                    drawHand(jointPoint, HANDCLOSEDCOLOR);
+                break;
 
-				case 2:
-					drawHand(jointPoint, HANDOPENCOLOR);
-				break;
+                case 2:
+                    drawHand(jointPoint, HANDOPENCOLOR);
+                break;
 
-				case 4:
-					drawHand(jointPoint, HANDLASSOCOLOR);
-				break;
-			}
-		}
+                case 4:
+                    drawHand(jointPoint, HANDLASSOCOLOR);
+                break;
+            }
+        }
 
         //COMMON VARS
         var leftHandRelPosX = 0;
@@ -75,6 +75,12 @@
         var mStatePrev = -1; //prev state value
         var mOutputDist = 0; 
 
+        var mInitialDistToTrigger = 0.1;//the initial distance to be covered before the motion is considered initiated
+        var mInitialDistCurrent = 0;
+
+        var mCurrentDistHands = 0;
+        var mPrevDistHands = 0;
+        var mDistHandsThres = 0.001; //the minimum value of distance between hands to start/stop gesture
 
         //if distance between hands in X higher than a predefined value
         //and distance between hands in Y lower than a predefined value
@@ -85,7 +91,7 @@
 
 
         var mMinDistBetweenHandsX = 0.1;
-        var mMaxDistBetweenHandsY = 0.1;
+        var mMaxDistBetweenHandsY = 0.2;
         var mMinSpeedHands = 0.003; //so far 0.01 tested; last tested 0.0000003;
 
         function gestureHandsMoveUp(body)
@@ -117,38 +123,82 @@
             var rightHandRelSpeedY = rightHandRelPosY - rightHandRelPosYOld;
             var rightHandRelPosZ = rightHandPosZ - torsoPosZ;
             var rightHandRelSpeedZ = rightHandRelPosZ - rightHandRelPosZOld;
-
+            
+            //GESTURE SPECIFIC
+            mCurrentDistHands = Math.abs(leftHandRelPosX - rightHandRelPosX);
 
             //GESTURE SPECIFIC
+            if (mState == 0)
+            {
+                printOutput("Gesture initiating");
 
-            if ((Math.abs(leftHandRelPosX - rightHandRelPosX) > mMinDistBetweenHandsX && Math.abs(leftHandRelPosY - rightHandRelPosY) < mMaxDistBetweenHandsY) &&
-                (body.leftHandState != 3 && body.rightHandState != 3)
-            )
+                if ((Math.abs(leftHandRelPosX - rightHandRelPosX) > mMinDistBetweenHandsX && Math.abs(leftHandRelPosY - rightHandRelPosY) < mMaxDistBetweenHandsY) &&
+                    (body.leftHandState != 3 && body.rightHandState != 3)
+                )
+                {
+                    mInitialDistCurrent += Math.abs(leftHandRelSpeedY);
+
+                    if (mInitialDistCurrent > mInitialDistToTrigger)
+                    {
+                        mInitialDistCurrent = 0;
+                        mState = 1;
+                    }
+                }
+                else
+                {
+                    mInitialDistCurrent = 0;
+                }
+                
+            }
+            else if (mState == 1)
             {
+                printOutput("Gesture initiated");
                 mState = 2;
-                if (leftHandRelSpeedY < - mMinSpeedHands)
+            }
+            else if (mState == 2)
+            {
+                if ((Math.abs(leftHandRelPosX - rightHandRelPosX) > mMinDistBetweenHandsX && Math.abs(leftHandRelPosY - rightHandRelPosY) < mMaxDistBetweenHandsY) &&
+                    (body.leftHandState != 3 && body.rightHandState != 3)
+                )
                 {
-                    printOutput("Gesture pending: Hands Up");
+                    if (leftHandRelSpeedY < - mMinSpeedHands)
+                    {
+                        printOutput("Gesture pending: Hands Up");
+                    }
+                    else if (leftHandRelSpeedY > mMinSpeedHands)
+                    {
+                       printOutput("Gesture ended: Hands Down");
+                        mState = 3;
+                    }
                 }
-                else if (leftHandRelSpeedY > mMinSpeedHands)
+                else if (Math.abs(leftHandRelPosX - rightHandRelPosX) < mMinDistBetweenHandsX)
                 {
-                    printOutput("Gesture pending: Hands Down");
+                    mState = 3;
+                    printOutput("Gesture ended: Hands too close in X");
+                }
+                else if (Math.abs(leftHandRelPosY - rightHandRelPosY) > mMaxDistBetweenHandsY)
+                {
+                    mState = 3;
+                    printOutput("Gesture ended: Hands too far in Y");
+                }
+                //for now not using this condition - Kinect too inaccurate here, to easy to break the motion
+                //else if (body.leftHandState == 3 || body.rightHandState == 3) 
+                //{
+                //    mState = 3;
+                //    printOutput("Gesture ended: One or more hands closed");
+                //}
+
+                //we prevent hands from sliding apart 
+                else if (mCurrentDistHands - mPrevDistHands > mDistHandsThres)
+                {
+                    mState = 3;
+                    printOutput("Gesture ended: Hands sliding out");
                 }
             }
-            else if (Math.abs(leftHandRelPosX - rightHandRelPosX) < mMinDistBetweenHandsX)
+            else if (mState == 3)
             {
-                mState = 3;
-                printOutput("Gesture ended: Hands too close in X");
-            }
-            else if (Math.abs(leftHandRelPosY - rightHandRelPosY) > mMaxDistBetweenHandsY)
-            {
-                mState = 3;
-                printOutput("Gesture ended: Hands too far in Y");
-            }
-            else if (body.leftHandState == 3 || body.rightHandState == 3) 
-            {
-                mState = 3;
-                printOutput("Gesture ended: One or more hands closed");
+                printOutput("Gesture resetting.");
+                mState = 0;
             }
 
             //COUNTING DISTANCE TRAVELLED
@@ -173,56 +223,56 @@
             rightHandRelPosZOld = rightHandRelPosZ;
         }
 
+        
         function printOutput(labelToPut)
         {
-            //console.log(labelToPut);
             document.getElementById("labelPar").innerHTML = labelToPut;
 
-            document.getElementById("distPar").innerHTML = "mState / mOutputDist: " + mState + " / " + mOutputDist.toPrecision(4);
+            document.getElementById("distPar").innerHTML = "mState / mInitialDistCurrent / mOutputDist: " + mState + " / " + mInitialDistCurrent.toPrecision(4) + "/ " + mOutputDist.toPrecision(4);
             document.getElementById("handsDistPar").innerHTML = "mCurrentDistHands / mPrevDistHands: " + mCurrentDistHands.toPrecision(4) + " / " + mPrevDistHands.toPrecision(4);
         }
 
-		function drawHand(jointPoint, handColor) 
-		{
-			// draw semi transparent hand cicles
-			ctx.globalAlpha = 0.75;
-			ctx.beginPath();
-			ctx.fillStyle = handColor;
-			ctx.arc(jointPoint.depthX * 512, jointPoint.depthY * 424, HANDSIZE, 0, Math.PI * 2, true);
-			ctx.fill();
-			ctx.closePath();
-			ctx.globalAlpha = 1;
-		}
+        function drawHand(jointPoint, handColor) 
+        {
+            // draw semi transparent hand cicles
+            ctx.globalAlpha = 0.75;
+            ctx.beginPath();
+            ctx.fillStyle = handColor;
+            ctx.arc(jointPoint.depthX * 512, jointPoint.depthY * 424, HANDSIZE, 0, Math.PI * 2, true);
+            ctx.fill();
+            ctx.closePath();
+            ctx.globalAlpha = 1;
+        }
 
-		socket.on('bodyFrame', function(bodyFrame)
-		{
-			//console.log("socket.on('bodyFrame', function(bodyFrame)");
+        socket.on('bodyFrame', function(bodyFrame)
+        {
+            //console.log("socket.on('bodyFrame', function(bodyFrame)");
 
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			var index = 0;
-			bodyFrame.bodies.forEach(function(body)
-			{
-				if(body.tracked) 
-				{
-					//console.log("body is tracked");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var index = 0;
+            bodyFrame.bodies.forEach(function(body)
+            {
+                if(body.tracked) 
+                {
+                    //console.log("body is tracked");
                     
-					for(var jointType in body.joints) 
-					{
-						var joint = body.joints[jointType];
-						ctx.fillStyle = colors[index];
-						ctx.fillRect(joint.depthX * 512, joint.depthY * 424, 10, 10);
-					}
-					//draw hand states
-					updateHandState(body.leftHandState, body.joints[7]);
+                    for(var jointType in body.joints) 
+                    {
+                        var joint = body.joints[jointType];
+                        ctx.fillStyle = colors[index];
+                        ctx.fillRect(joint.depthX * 512, joint.depthY * 424, 10, 10);
+                    }
+                    //draw hand states
+                    updateHandState(body.leftHandState, body.joints[7]);
                     updateHandState(body.rightHandState, body.joints[11]);
   
                     gestureHandsMoveUp(body);
 
-					index++;
-				}
-			});
-		});
-	</script>
+                    index++;
+                }
+            });
+        });
+    </script>
 </body>
 </html>
 
